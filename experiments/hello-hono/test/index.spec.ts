@@ -1,16 +1,32 @@
-import { SELF } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { env, SELF } from "cloudflare:test";
+import { describe, it, expect, beforeAll } from "vitest";
+
+beforeAll(async () => {
+	await env.DB.prepare(
+		"CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+	).run();
+	await env.DB.prepare("DELETE FROM messages").run();
+	await env.DB.batch([
+		env.DB.prepare("INSERT INTO messages (text) VALUES (?)").bind("test row 1"),
+		env.DB.prepare("INSERT INTO messages (text) VALUES (?)").bind("test row 2"),
+	]);
+});
 
 describe("hello-hono", () => {
-	it("GET / returns HTML", async () => {
+	it("GET / returns HTML with messages from D1", async () => {
 		const res = await SELF.fetch("http://example.com/");
 		expect(res.headers.get("content-type")).toMatch(/text\/html/);
-		expect(await res.text()).toContain("hello, hono on workers");
+		const body = await res.text();
+		expect(body).toContain("hello, hono on workers");
+		expect(body).toContain("test row 1");
+		expect(body).toContain("test row 2");
 	});
 
-	it("GET /api/hello returns JSON", async () => {
-		const res = await SELF.fetch("http://example.com/api/hello");
-		expect(await res.json()).toEqual({ message: "Hello, World!" });
+	it("GET /api/messages returns rows from D1", async () => {
+		const res = await SELF.fetch("http://example.com/api/messages");
+		const rows = (await res.json()) as Array<{ text: string }>;
+		expect(rows).toHaveLength(2);
+		expect(rows.map((r) => r.text)).toEqual(["test row 1", "test row 2"]);
 	});
 
 	it("GET /api/uuid returns a UUID", async () => {
