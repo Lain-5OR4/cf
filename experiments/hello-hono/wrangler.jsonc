@@ -21,6 +21,12 @@
 			"database_name": "hello-hono-db",
 			"database_id": "dc2dc864-72f6-4df4-adce-2fabc331e699"
 		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "hello-hono-images"
+		}
 	]
 	/**
 	 * Smart Placement
